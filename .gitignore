@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+
+# Local SQLite database
+pantry.db
+
+# Generated output
+output/

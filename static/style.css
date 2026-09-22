@@ -1,0 +1,103 @@
+/* PantryPlus - styles for the static pantry list view. */
+
+:root {
+    --green-dark: #2f6b45;
+    --green: #3a8158;
+    --green-light: #eaf3ed;
+    --border: #d8e2db;
+    --text: #1f2a24;
+    --text-muted: #5d6b63;
+    --bg: #f7f9f8;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 32px 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--bg);
+}
+
+h1 {
+    max-width: 900px;
+    margin: 0 auto 20px;
+    padding: 0 4px;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--green-dark);
+}
+
+#itemList {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Each row is a 4-column grid: name | quantity | category | expiration */
+.item-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.4fr 1.2fr;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+}
+
+.item-row:nth-child(even) {
+    background: #fcfdfc;
+}
+
+.item-row span:first-child {
+    font-weight: 600;
+}
+
+.item-row span:not(:first-child) {
+    color: var(--text-muted);
+}
+
+/* Column headings, emitted as the first row of the list. */
+.item-row.header {
+    border-top: none;
+    background: var(--green-light);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--green-dark);
+}
+
+.item-row.header span {
+    color: var(--green-dark);
+    font-weight: 700;
+}
+
+.empty {
+    padding: 32px 18px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+/* Stack into labelled pairs on narrow screens. */
+@media (max-width: 600px) {
+    .item-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .item-row.header {
+        display: none;
+    }
+
+    .item-row span:first-child {
+        font-size: 16px;
+    }
+}
