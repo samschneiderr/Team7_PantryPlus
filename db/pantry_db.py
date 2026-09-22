@@ -1,11 +1,9 @@
 # Handles database setup and CRUD operations for pantry items.
-import os
 import sqlite3
 from datetime import date
 from models.pantry_item import PantryItem
 
-# Anchored to the project root so the db is found no matter where you run from.
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pantry.db")
+DB_PATH = "pantry.db"
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
