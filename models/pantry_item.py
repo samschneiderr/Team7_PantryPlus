@@ -9,3 +9,4 @@ class PantryItem:
     unit: str
     expiration_date: date
     category: str
+    barcode: str = None
