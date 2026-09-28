@@ -10,3 +10,4 @@ class PantryItem:
     expiration_date: date
     category: str
     barcode: str = None
+    status: str = "active"
