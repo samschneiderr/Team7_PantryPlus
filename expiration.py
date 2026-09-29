@@ -35,6 +35,3 @@ def get_expiration_status(item: PantryItem, reference_date: date = None) -> str:
     else:
         return "fresh"
 
-
-
-Bruh, idk why its not working but you can copy paste it.
