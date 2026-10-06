@@ -16,7 +16,7 @@ def init_db():
 def add_item(name, quantity, unit, expiration_date, category, barcode=None, status="active"):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.execute("INSERT INTO pantry_items (name, quantity, unit, expiration_date, category, barcode, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (name, quantity, unit, expiration_date.isoformat(), category, barcode, status))
+        (name, quantity, unit, expiration_date.isoformat() if expiration_date else None, category, barcode, status))
     conn.commit(); conn.close()
     return cur.lastrowid
 
@@ -25,7 +25,7 @@ def get_all_items():
     rows = conn.execute("SELECT * FROM pantry_items").fetchall()
     conn.close()
     return [PantryItem(id=r[0], name=r[1], quantity=r[2], unit=r[3],
-        expiration_date=date.fromisoformat(r[4]), category=r[5], barcode=r[6], status=r[7]) for r in rows]
+        expiration_date=date.fromisoformat(r[4]) if r[4] else None, category=r[5], barcode=r[6], status=r[7]) for r in rows]
 
 def update_item(item_id, **fields):
     conn = sqlite3.connect(DB_PATH)

@@ -12,6 +12,8 @@ def get_pantry_summary():
     summary = {"expired": 0, "expiring soon": 0, "fresh": 0}
 
     for item in items:
+        if item.expiration_date is None:  # e.g. salt, spices - nothing to count
+            continue
         status = get_expiration_status(item)
         summary[status] += 1
 
