@@ -14,6 +14,11 @@ def init_db():
     conn.commit(); conn.close()
 
 def add_item(name, quantity, unit, expiration_date, category, barcode=None, status="active"):
+    if not name or not name.strip():
+        raise ValueError("Item name cannot be empty")
+    if quantity < 0:
+        raise ValueError("Quantity cannot be negative")
+
     conn = sqlite3.connect(DB_PATH)
     cur = conn.execute("INSERT INTO pantry_items (name, quantity, unit, expiration_date, category, barcode, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (name, quantity, unit, expiration_date.isoformat() if expiration_date else None, category, barcode, status))
@@ -45,3 +50,16 @@ def mark_item_used(item_id):
 def mark_item_discarded(item_id):
     """Mark an item as thrown out, typically due to expiration."""
     update_item(item_id, status="thrown_out")
+
+def count_items_by_category(status="active"):
+    """Count pantry items with the given status, grouped by category.
+
+    Items with a missing or blank category are grouped as "Uncategorized"
+    so the category counts always add up to the total.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute("""SELECT COALESCE(NULLIF(TRIM(category), ''), 'Uncategorized') AS category_name,
+        COUNT(*) FROM pantry_items WHERE status = ?
+        GROUP BY category_name ORDER BY category_name""", (status,)).fetchall()
+    conn.close()
+    return {category_name: count for category_name, count in rows}
