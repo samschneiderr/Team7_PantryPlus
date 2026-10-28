@@ -1,8 +1,9 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import Nav from './Nav'
 import Profile from './pages/Profile'
 import Shopping from './pages/Shopping'
 import Activity from './pages/Activity'
+import Home from './pages/Home'
 import './App.css'
 
 function App() {
@@ -10,7 +11,7 @@ function App() {
     <BrowserRouter>
       <div className="app">
         <div className="topnav">
-          <div className="brand">Pantry<span>Plus</span></div>
+          <Link to="/" className="brand">Pantry<span>Plus</span></Link>
         </div>
 
         <Routes>
@@ -19,7 +20,7 @@ function App() {
           <Route path="/shopping" element={<Shopping />} />
           <Route path="/activity" element={<Activity />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/" element={<div className="page"><h1>Home</h1><p className="subtitle">Coming soon, Chanelee's story</p></div>} />
+          <Route path="/" element={<Home />} />
         </Routes>
 
         <Nav />

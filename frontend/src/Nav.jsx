@@ -10,7 +10,7 @@ function Nav() {
         <div className="tabicon"></div>Inventory
       </NavLink>
       <NavLink to="/shopping" className={({ isActive }) => isActive ? "tab active" : "tab"}>
-        <div className="tabicon"></div>Shopping
+        <div className="tabicon"></div>Shopping List
       </NavLink>
       <NavLink to="/activity" className={({ isActive }) => isActive ? "tab active" : "tab"}>
         <div className="tabicon"></div>Activity
