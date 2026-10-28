@@ -4,6 +4,8 @@ import Profile from './pages/Profile'
 import Shopping from './pages/Shopping'
 import Activity from './pages/Activity'
 import Home from './pages/Home'
+import Add from './pages/Add'
+import Inventory from './pages/Inventory'
 import './App.css'
 
 function App() {
@@ -15,8 +17,8 @@ function App() {
         </div>
 
         <Routes>
-          <Route path="/add" element={<div className="page"><h1>Add Item</h1><p className="subtitle">Coming soon</p></div>} />
-          <Route path="/inventory" element={<div className="page"><h1>Inventory</h1><p className="subtitle">Coming soon, Ti'onna's story</p></div>} />
+          <Route path="/add" element={<Add />} />
+          <Route path="/inventory" element={<Inventory />} />
           <Route path="/shopping" element={<Shopping />} />
           <Route path="/activity" element={<Activity />} />
           <Route path="/profile" element={<Profile />} />
