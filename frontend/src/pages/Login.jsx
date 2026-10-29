@@ -3,33 +3,27 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useUser } from '../UserContext'
 
 function Login() {
-  const { setCurrentUser, users } = useUser()
+  const { logIn } = useUser()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
 
     if (!email || !password) {
       setError('Please enter both email and password')
       return
     }
 
-    const foundUser = users.find(
-      (user) => user.email.toLowerCase() === email.toLowerCase()
-    )
-
-    if (!foundUser) {
-      setError('No account found with that email')
-      return
+    try {
+      await logIn({ email, password })
+      navigate('/profile')
+    } catch (err) {
+      setError(err.message)
     }
-
-    // Note: there's no real backend authentication yet, so any password
-    // is accepted as long as the email matches a known account.
-    setCurrentUser(foundUser)
-    navigate('/profile')
   }
 
   return (
@@ -69,9 +63,6 @@ function Login() {
       </form>
 
       <p className="subtitle" style={{ marginTop: '16px' }}>
-        Try: samschneiderr@example.com, tihunter@example.com, or cflorentino@example.com (any password works for now)
-      </p>
-      <p className="subtitle">
         New here? <Link to="/signup">Create an account</Link>
       </p>
     </div>

@@ -13,16 +13,21 @@ function SignUp() {
   const [diet, setDiet] = useState('None')
   const [error, setError] = useState('')
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
 
     if (!name.trim() || !email.trim() || !password) {
       setError('Please fill out all required fields')
       return
     }
 
-    signUp({ name, email, household, diet })
-    navigate('/profile')
+    try {
+      await signUp({ name, email, password, household, diet })
+      navigate('/profile')
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   return (

@@ -8,6 +8,7 @@ function EditProfile() {
 
   const [household, setHousehold] = useState(currentUser?.household || 1)
   const [diet, setDiet] = useState(currentUser?.diet || 'None')
+  const [error, setError] = useState('')
 
   if (!currentUser) {
     return (
@@ -21,10 +22,15 @@ function EditProfile() {
     )
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    updateUser({ household: Number(household), diet })
-    navigate('/profile')
+    setError('')
+    try {
+      await updateUser({ household, diet })
+      navigate('/profile')
+    } catch (err) {
+      setError('Something went wrong saving your changes')
+    }
   }
 
   return (
@@ -59,6 +65,10 @@ function EditProfile() {
             <option>Dairy-Free</option>
           </select>
         </div>
+
+        {error && (
+          <p style={{ color: '#c0392b', fontSize: '13px', marginBottom: '12px' }}>{error}</p>
+        )}
 
         <button type="submit" className="btn-primary">Save Changes</button>
       </form>

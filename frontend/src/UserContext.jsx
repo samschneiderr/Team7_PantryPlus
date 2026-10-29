@@ -2,47 +2,60 @@ import { createContext, useContext, useState } from 'react'
 
 const UserContext = createContext()
 
-const initialUsers = [
-  { id: 1, name: "Samantha Schneider", email: "samschneiderr@example.com", initials: "SS", household: 3, diet: "Vegetarian" },
-  { id: 2, name: "Ti'onna Hunter", email: "tihunter@example.com", initials: "TH", household: 2, diet: "None" },
-  { id: 3, name: "Chanelee Florentino", email: "cflorentino@example.com", initials: "CF", household: 4, diet: "Gluten-Free" },
-]
-
-function getInitials(name) {
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
 export function UserProvider({ children }) {
-  const [users, setUsers] = useState(initialUsers)
   const [currentUser, setCurrentUser] = useState(null)
 
-  const signUp = ({ name, email, household, diet }) => {
-    const newUser = {
-      id: users.length + 1,
-      name,
-      email,
-      initials: getInitials(name),
-      household: Number(household) || 1,
-      diet: diet || "None",
+  const signUp = async ({ name, email, password, household, diet }) => {
+    const response = await fetch('/api/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, household: Number(household), diet }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Sign up failed')
     }
-    setUsers([...users, newUser])
+
+    const newUser = await response.json()
     setCurrentUser(newUser)
     return newUser
   }
 
-  const updateUser = (updatedFields) => {
-    const updated = { ...currentUser, ...updatedFields }
+  const logIn = async ({ email, password }) => {
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Login failed')
+    }
+
+    const user = await response.json()
+    setCurrentUser(user)
+    return user
+  }
+
+  const updateUser = async ({ household, diet }) => {
+    const response = await fetch(`/api/users/${currentUser.id}/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ household: Number(household), diet }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Update failed')
+    }
+
+    const updated = { ...currentUser, household: Number(household), diet }
     setCurrentUser(updated)
-    setUsers(users.map((u) => (u.id === updated.id ? updated : u)))
   }
 
   return (
-    <UserContext.Provider value={{ currentUser, setCurrentUser, users, signUp, updateUser }}>
+    <UserContext.Provider value={{ currentUser, setCurrentUser, signUp, logIn, updateUser }}>
       {children}
     </UserContext.Provider>
   )
