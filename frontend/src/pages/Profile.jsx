@@ -1,56 +1,54 @@
+import { useNavigate } from 'react-router-dom'
+import { useUser } from '../UserContext'
+
 function Profile() {
-  const user = {
-    name: "Samantha Schneider",
-    email: "samschneiderr@example.com",
-    initials: "SS",
-    memberSince: "September 2026",
+  const { currentUser, setCurrentUser } = useUser()
+  const navigate = useNavigate()
+
+  if (!currentUser) {
+    return (
+      <div className="page">
+        <h1>My Profile</h1>
+        <p className="subtitle">You're not logged in yet</p>
+        <button className="btn-primary" onClick={() => navigate('/login')}>
+          Go to Login
+        </button>
+      </div>
+    )
   }
 
-  const household = {
-    size: 3,
-    dietaryPreferences: "Vegetarian",
+  const handleLogOut = () => {
+    setCurrentUser(null)
+    navigate('/login')
   }
 
   return (
     <div className="page">
       <div className="profile-header">
-        <div className="avatar-large">{user.initials}</div>
-        <h1>{user.name}</h1>
-        <p className="subtitle">{user.email}</p>
-        <p className="member-since">Member since {user.memberSince}</p>
+        <div className="avatar-large">{currentUser.initials}</div>
+        <h1>{currentUser.name}</h1>
+        <p className="subtitle">{currentUser.email}</p>
       </div>
 
       <div className="section-label">Household Preferences</div>
       <div className="settings-list">
         <div className="settings-row">
           <span>Household Size</span>
-          <span className="settings-value">{household.size} people</span>
+          <span className="settings-value">{currentUser.household} people</span>
         </div>
         <div className="settings-row">
           <span>Dietary Preferences</span>
-          <span className="settings-value">{household.dietaryPreferences}</span>
-        </div>
-      </div>
-
-      <div className="section-label">Notifications</div>
-      <div className="settings-list">
-        <div className="settings-row">
-          <span>Expiration Alerts</span>
-          <span className="settings-value">3 days before</span>
-        </div>
-        <div className="settings-row">
-          <span>Email Notifications</span>
-          <span className="settings-value">On</span>
+          <span className="settings-value">{currentUser.diet}</span>
         </div>
       </div>
 
       <div className="section-label">Account</div>
       <div className="settings-list">
-        <div className="settings-row">
+        <div className="settings-row" style={{ cursor: 'pointer' }} onClick={() => navigate('/edit-profile')}>
           <span>Edit Profile</span>
           <span className="chevron">›</span>
         </div>
-        <div className="settings-row">
+        <div className="settings-row" style={{ cursor: 'pointer' }} onClick={handleLogOut}>
           <span>Log Out</span>
           <span className="chevron">›</span>
         </div>
