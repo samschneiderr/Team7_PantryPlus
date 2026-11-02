@@ -384,3 +384,9 @@ body {
 .topnav-profile:hover {
   background: var(--border);
 }
+.camera-view {
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+  min-height: 300px;
+}

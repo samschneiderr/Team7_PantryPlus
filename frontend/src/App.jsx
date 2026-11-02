@@ -11,6 +11,7 @@ import Activity from './pages/Activity'
 import Home from './pages/Home'
 import Add from './pages/Add'
 import Inventory from './pages/Inventory'
+import ScanCamera from './pages/ScanCamera'
 import './App.css'
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/edit-profile" element={<EditProfile />} />
+            <Route path="/scan" element={<ScanCamera />} />
             <Route path="/add" element={<Add />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/shopping" element={<Shopping />} />

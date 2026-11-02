@@ -4,6 +4,7 @@ from datetime import date
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from db.pantry_db import init_db, get_all_items, add_item, mark_item_used, mark_item_discarded
 from db.users_db import init_users_db, create_user, get_user_by_email, update_user
+from scan_to_add import BARCODE_CATALOG, simulate_scan_success
 
 PORT = 5001
 
@@ -62,6 +63,20 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
             exp_date = date.fromisoformat(expiration_date_str) if expiration_date_str else None
             item_id = add_item(name, float(quantity), unit, exp_date, category)
             self._send_json(201, {"id": item_id, "name": name})
+
+        elif self.path == "/api/scan":
+            data = self._read_json_body()
+            barcode = data.get("barcode")
+
+            scan_ok = simulate_scan_success()
+            item_name = BARCODE_CATALOG.get(barcode) if scan_ok else None
+            success = scan_ok and item_name is not None
+
+            self._send_json(200, {
+                "success": success,
+                "item_name": item_name,
+                "barcode": barcode,
+            })
 
         elif self.path.startswith("/api/items/") and self.path.endswith("/status"):
             parts = self.path.split("/")

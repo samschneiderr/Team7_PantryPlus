@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 function Add() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [unit, setUnit] = useState('')
@@ -8,6 +12,29 @@ function Add() {
   const [expirationDate, setExpirationDate] = useState('')
   const [errors, setErrors] = useState({})
   const [showToast, setShowToast] = useState(false)
+  const [scanMessage, setScanMessage] = useState('')
+
+  useEffect(() => {
+    const barcode = searchParams.get('barcode')
+    if (!barcode) return
+
+    fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ barcode }),
+    })
+      .then((res) => res.json())
+      .then((result) => {
+        if (result.success) {
+          setName(result.item_name)
+          setCategory('Pantry')
+          setQuantity('1')
+          setScanMessage(`✓ Recognized: ${result.item_name}`)
+        } else {
+          setScanMessage('Scan unsuccessful. Please enter the item manually.')
+        }
+      })
+  }, [searchParams])
 
   const validate = () => {
     const newErrors = {}
@@ -22,6 +49,7 @@ function Add() {
     setUnit('')
     setCategory('')
     setExpirationDate('')
+    setScanMessage('')
   }
 
   const handleSubmit = async (e) => {
@@ -65,6 +93,12 @@ function Add() {
 
       <h1>Add Item</h1>
       <p className="subtitle">Manually add an item to your pantry</p>
+
+      {scanMessage && (
+        <p style={{ color: scanMessage.startsWith('✓') ? 'var(--green-dark)' : '#c0392b', fontSize: '13px', marginBottom: '14px', fontWeight: 700 }}>
+          {scanMessage}
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="detect-card">
         <div className="field">
