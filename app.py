@@ -2,7 +2,7 @@
 import json
 from datetime import date
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from db.pantry_db import init_db, get_all_items
+from db.pantry_db import init_db, get_all_items, add_item
 from db.users_db import init_users_db, create_user, get_user_by_email, update_user
 
 PORT = 5001
@@ -45,8 +45,24 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
             self.send_error(404)
 
     def do_POST(self):
-        """Handle POST /api/signup, /api/login, and /api/users/<id>/update."""
-        if self.path == "/api/signup":
+        """Handle POST /api/items, /api/signup, /api/login, and /api/users/<id>/update."""
+        if self.path == "/api/items":
+            data = self._read_json_body()
+            name = data.get("name")
+            quantity = data.get("quantity")
+            unit = data.get("unit", "")
+            category = data.get("category", "")
+            expiration_date_str = data.get("expiration_date")
+
+            if not name or quantity is None or float(quantity) <= 0:
+                self._send_json(400, {"error": "Name is required and quantity must be above 0"})
+                return
+
+            exp_date = date.fromisoformat(expiration_date_str) if expiration_date_str else None
+            item_id = add_item(name, float(quantity), unit, exp_date, category)
+            self._send_json(201, {"id": item_id, "name": name})
+
+        elif self.path == "/api/signup":
             data = self._read_json_body()
             name = data.get("name")
             email = data.get("email")
@@ -69,7 +85,6 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
             data = self._read_json_body()
             email = data.get("email")
             user = get_user_by_email(email)
-            # Note: password is not yet verified, this is an early version.
             if user is None:
                 self._send_json(404, {"error": "No account found with that email"})
                 return
