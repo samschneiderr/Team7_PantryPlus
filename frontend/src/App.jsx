@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { UserProvider } from './UserContext'
 import Nav from './Nav'
+import TopNav from './TopNav'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import EditProfile from './pages/EditProfile'
@@ -17,9 +18,7 @@ function App() {
     <UserProvider>
       <BrowserRouter>
         <div className="app">
-          <div className="topnav">
-            <div className="brand">Pantry<span>Plus</span></div>
-          </div>
+          <TopNav />
 
           <Routes>
             <Route path="/login" element={<Login />} />

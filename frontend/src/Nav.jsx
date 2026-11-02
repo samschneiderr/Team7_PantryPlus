@@ -18,9 +18,6 @@ function Nav() {
       <NavLink to="/activity" className={({ isActive }) => isActive ? "tab active" : "tab"}>
         <div className="tabicon"></div>Activity
       </NavLink>
-      <NavLink to="/profile" className={({ isActive }) => isActive ? "tab active" : "tab"}>
-        <div className="tabicon"></div>Profile
-      </NavLink>
     </div>
   )
 }
