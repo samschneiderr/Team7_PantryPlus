@@ -118,6 +118,52 @@ body {
 }
 .btn-primary:hover { background: var(--green-dark); }
 
+.scan-actions {
+  margin-bottom: 28px;
+}
+.btn-scan {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--green);
+  color: #fff;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 12px;
+  padding: 18px;
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 10px;
+  box-shadow: 0 3px 10px rgba(47, 107, 69, 0.25);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.btn-scan:hover {
+  background: var(--green-dark);
+  transform: translateY(-1px);
+}
+.btn-scan svg {
+  flex-shrink: 0;
+}
+
+.btn-manual {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  color: var(--green-dark);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.btn-manual:hover {
+  border-color: var(--green);
+  background: var(--green-light);
+}
+
 .profile-header {
   text-align: center;
   padding: 20px 0 10px;
@@ -184,14 +230,83 @@ body {
   font-size: 13px;
   font-weight: 700;
 }
-
-.inventory-header {
-  background: var(--green-light);
-  font-size: 11px;
+.fresh-status {
+  color: var(--green);
+  font-size: 13px;
   font-weight: 700;
+}
+
+.inventory-item-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+.inventory-item-row:first-of-type {
+  border-top: none;
+}
+.inventory-item-name {
+  text-align: left;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 600;
+}
+.inventory-item-actions {
+  display: flex;
+  gap: 8px;
+}
+.status-badge {
+  font-size: 10.5px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.status-badge.fresh-status {
+  background: var(--green-light);
   color: var(--green-dark);
+}
+.status-badge.expiring {
+  background: #fdf0e0;
+  color: #c9823a;
+}
+.status-badge.settings-value {
+  background: var(--bg);
+  color: var(--text-muted);
+}
+.status-badge.expired-status {
+  background: #fbeaea;
+  color: #c0392b;
+}
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.icon-btn-used {
+  color: var(--green);
+}
+.icon-btn-used:hover {
+  background: var(--green-light);
+  border-color: var(--green);
+}
+.icon-btn-trash {
+  color: #c0392b;
+}
+.icon-btn-trash:hover {
+  background: #fbeaea;
+  border-color: #c0392b;
 }
 
 .toast {
@@ -245,53 +360,3 @@ body {
   background: var(--border);
 }
 .tab.active .tabicon { background: var(--green); }
-.fresh-status {
-  color: var(--green);
-  font-size: 13px;
-  font-weight: 700;
-}
-.scan-actions {
-  margin-bottom: 28px;
-}
-.btn-scan {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: var(--green);
-  color: #fff;
-  text-align: center;
-  text-decoration: none;
-  border-radius: 12px;
-  padding: 18px;
-  font-size: 16px;
-  font-weight: 800;
-  margin-bottom: 10px;
-  box-shadow: 0 3px 10px rgba(47, 107, 69, 0.25);
-  transition: background 0.15s ease, transform 0.1s ease;
-}
-.btn-scan:hover {
-  background: var(--green-dark);
-  transform: translateY(-1px);
-}
-.btn-scan svg {
-  flex-shrink: 0;
-}
-
-.btn-manual {
-  display: block;
-  text-align: center;
-  text-decoration: none;
-  color: var(--green-dark);
-  font-size: 14px;
-  font-weight: 700;
-  padding: 12px;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  background: #fff;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.btn-manual:hover {
-  border-color: var(--green);
-  background: var(--green-light);
-}
