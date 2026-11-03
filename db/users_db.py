@@ -1,7 +1,14 @@
 """Handles database setup and operations for user accounts."""
 import sqlite3
+import hashlib
 
 DB_PATH = "pantry.db"  # reuse the same database file as pantry items
+
+
+def _hash_password(password):
+    """Hash a password using SHA-256."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
 
 def init_users_db():
     conn = sqlite3.connect(DB_PATH)
@@ -21,7 +28,7 @@ def create_user(name, email, password, household=1, diet="None"):
     try:
         cur = conn.execute(
             "INSERT INTO users (name, email, password, household, diet) VALUES (?, ?, ?, ?, ?)",
-            (name, email, password, household, diet)
+            (name, email, _hash_password(password), household, diet)
         )
         conn.commit()
         return cur.lastrowid
@@ -38,6 +45,15 @@ def get_user_by_email(email):
     if row is None:
         return None
     return {"id": row[0], "name": row[1], "email": row[2], "household": row[4], "diet": row[5]}
+
+def verify_password(email, password):
+    """Check whether the given password matches the stored hash for this email."""
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT password FROM users WHERE email = ?", (email,)).fetchone()
+    conn.close()
+    if row is None:
+        return False
+    return row[0] == _hash_password(password)
 
 def update_user(user_id, household=None, diet=None):
     """Update a user's household size and/or dietary preference."""

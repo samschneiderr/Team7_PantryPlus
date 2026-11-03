@@ -3,7 +3,7 @@ import json
 from datetime import date
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from db.pantry_db import init_db, get_all_items, add_item, mark_item_used, mark_item_discarded
-from db.users_db import init_users_db, create_user, get_user_by_email, update_user
+from db.users_db import init_users_db, create_user, get_user_by_email, update_user, verify_password
 from scan_to_add import BARCODE_CATALOG, simulate_scan_success
 
 PORT = 5001
@@ -118,11 +118,12 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
         elif self.path == "/api/login":
             data = self._read_json_body()
             email = data.get("email")
-            user = get_user_by_email(email)
-            if user is None:
-                self._send_json(404, {"error": "No account found with that email"})
+            password = data.get("password")
+            if not verify_password(email, password):
+                self._send_json(401, {"error": "Incorrect email or password"})
                 return
-            self._send_json(200, user)
+
+            self._send_json(200, get_user_by_email(email))
 
         elif self.path.startswith("/api/users/") and self.path.endswith("/update"):
             parts = self.path.split("/")
