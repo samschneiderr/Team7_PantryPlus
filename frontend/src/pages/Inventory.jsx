@@ -42,7 +42,7 @@ function Inventory() {
     await fetch(`/api/items/${itemId}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, user_id: currentUser.id }),
     })
     loadItems()
   }

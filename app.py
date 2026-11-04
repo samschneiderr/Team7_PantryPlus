@@ -3,7 +3,7 @@ import json
 from datetime import date
 from urllib.parse import urlparse, parse_qs
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from db.pantry_db import init_db, get_items_for_user, add_item, mark_item_used, mark_item_discarded
+from db.pantry_db import init_db, get_items_for_user, get_item, add_item, mark_item_used, mark_item_discarded
 from db.users_db import init_users_db, create_user, get_user_by_email, update_user, verify_password
 from scan_to_add import BARCODE_CATALOG, simulate_scan_success
 
@@ -104,7 +104,14 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "Invalid item id"})
                 return
             data = self._read_json_body()
+            user_id = data.get("user_id")
             new_status = data.get("status")
+
+            item = get_item(item_id)
+            if item is None or item.user_id != user_id:
+                self._send_json(404, {"error": "Item not found"})
+                return
+
             if new_status == "used":
                 mark_item_used(item_id)
             elif new_status == "thrown_out":
