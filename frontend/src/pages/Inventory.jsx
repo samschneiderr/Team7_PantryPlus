@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useUser } from '../UserContext'
 
 function getStatus(daysLeft) {
   if (daysLeft === null) return { label: 'No Date', className: 'settings-value' }
@@ -8,18 +10,33 @@ function getStatus(daysLeft) {
 }
 
 function Inventory() {
+  const { currentUser } = useUser()
+  const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [search, setSearch] = useState('')
 
   const loadItems = () => {
-    fetch('/api/items')
+    if (!currentUser) return
+    fetch(`/api/items?user_id=${currentUser.id}`)
       .then((response) => response.json())
       .then(setItems)
   }
 
   useEffect(() => {
     loadItems()
-  }, [])
+  }, [currentUser])
+
+  if (!currentUser) {
+    return (
+      <div className="page">
+        <h1>Inventory</h1>
+        <p className="subtitle">You're not logged in yet</p>
+        <button className="btn-primary" onClick={() => navigate('/login')}>
+          Go to Login
+        </button>
+      </div>
+    )
+  }
 
   const handleMark = async (itemId, status) => {
     await fetch(`/api/items/${itemId}/status`, {

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useUser } from '../UserContext'
 
 function Add() {
+  const { currentUser } = useUser()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -35,6 +37,18 @@ function Add() {
         }
       })
   }, [searchParams])
+
+  if (!currentUser) {
+    return (
+      <div className="page">
+        <h1>Add Item</h1>
+        <p className="subtitle">You're not logged in yet</p>
+        <button className="btn-primary" onClick={() => navigate('/login')}>
+          Go to Login
+        </button>
+      </div>
+    )
+  }
 
   const validate = () => {
     const newErrors = {}
@@ -71,6 +85,7 @@ function Add() {
           unit,
           category,
           expiration_date: expirationDate || null,
+          user_id: currentUser.id,
         }),
       })
 

@@ -1,16 +1,17 @@
 """Serves pantry data and user accounts as JSON for the frontend."""
 import json
 from datetime import date
+from urllib.parse import urlparse, parse_qs
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from db.pantry_db import init_db, get_all_items, add_item, mark_item_used, mark_item_discarded
+from db.pantry_db import init_db, get_items_for_user, add_item, mark_item_used, mark_item_discarded
 from db.users_db import init_users_db, create_user, get_user_by_email, update_user, verify_password
 from scan_to_add import BARCODE_CATALOG, simulate_scan_success
 
 PORT = 5001
 
 
-def get_items_formatted():
-    """Return all pantry items as dicts with days left until expiration."""
+def get_items_formatted(user_id):
+    """Return this user's pantry items as dicts with days left until expiration."""
     today = date.today()
     return [{
         "id": item.id,
@@ -20,7 +21,7 @@ def get_items_formatted():
         "category": item.category,
         "status": item.status,
         "days_left": (item.expiration_date - today).days if item.expiration_date else None,
-    } for item in get_all_items()]
+    } for item in get_items_for_user(user_id)]
 
 
 class PantryRequestHandler(BaseHTTPRequestHandler):
@@ -40,31 +41,48 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
         return json.loads(raw) if raw else {}
 
     def do_GET(self):
-        """Respond to GET /api/items with all pantry items."""
-        if self.path == "/api/items":
-            self._send_json(200, get_items_formatted())
+        """Respond to GET /api/items?user_id=X with that user's pantry items."""
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/items":
+            params = parse_qs(parsed.query)
+            user_id_str = params.get("user_id", [None])[0]
+            if not user_id_str:
+                self._send_json(400, {"error": "user_id is required"})
+                return
+            try:
+                user_id = int(user_id_str)
+            except ValueError:
+                self._send_json(400, {"error": "Invalid user_id"})
+                return
+            self._send_json(200, get_items_formatted(user_id))
         else:
             self.send_error(404)
 
     def do_POST(self):
         """Handle all POST endpoints."""
-        if self.path == "/api/items":
+        parsed = urlparse(self.path)
+
+        if parsed.path == "/api/items":
             data = self._read_json_body()
             name = data.get("name")
             quantity = data.get("quantity")
             unit = data.get("unit", "")
             category = data.get("category", "")
             expiration_date_str = data.get("expiration_date")
+            user_id = data.get("user_id")
 
+            if not user_id:
+                self._send_json(400, {"error": "user_id is required"})
+                return
             if not name or quantity is None or float(quantity) <= 0:
                 self._send_json(400, {"error": "Name is required and quantity must be above 0"})
                 return
 
             exp_date = date.fromisoformat(expiration_date_str) if expiration_date_str else None
-            item_id = add_item(name, float(quantity), unit, exp_date, category)
+            item_id = add_item(name, float(quantity), unit, exp_date, category, user_id=user_id)
             self._send_json(201, {"id": item_id, "name": name})
 
-        elif self.path == "/api/scan":
+        elif parsed.path == "/api/scan":
             data = self._read_json_body()
             barcode = data.get("barcode")
 
@@ -78,8 +96,8 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
                 "barcode": barcode,
             })
 
-        elif self.path.startswith("/api/items/") and self.path.endswith("/status"):
-            parts = self.path.split("/")
+        elif parsed.path.startswith("/api/items/") and parsed.path.endswith("/status"):
+            parts = parsed.path.split("/")
             try:
                 item_id = int(parts[3])
             except (IndexError, ValueError):
@@ -96,7 +114,7 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
                 return
             self._send_json(200, {"success": True})
 
-        elif self.path == "/api/signup":
+        elif parsed.path == "/api/signup":
             data = self._read_json_body()
             name = data.get("name")
             email = data.get("email")
@@ -115,18 +133,19 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
 
             self._send_json(201, get_user_by_email(email))
 
-        elif self.path == "/api/login":
+        elif parsed.path == "/api/login":
             data = self._read_json_body()
             email = data.get("email")
             password = data.get("password")
+
             if not verify_password(email, password):
                 self._send_json(401, {"error": "Incorrect email or password"})
                 return
 
             self._send_json(200, get_user_by_email(email))
 
-        elif self.path.startswith("/api/users/") and self.path.endswith("/update"):
-            parts = self.path.split("/")
+        elif parsed.path.startswith("/api/users/") and parsed.path.endswith("/update"):
+            parts = parsed.path.split("/")
             try:
                 user_id = int(parts[3])
             except (IndexError, ValueError):

@@ -12,3 +12,4 @@ class PantryItem:
     barcode: str = None
     status: str = "active"
     min_quantity: float = None
+    user_id: int = None
