@@ -238,7 +238,7 @@ body {
 
 .inventory-item-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
@@ -252,6 +252,11 @@ body {
   font-size: 14px;
   color: var(--text);
   font-weight: 600;
+}
+.inventory-item-qty {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 .inventory-item-actions {
   display: flex;

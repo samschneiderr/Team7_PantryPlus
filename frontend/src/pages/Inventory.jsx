@@ -64,6 +64,7 @@ function Inventory() {
               <div className="inventory-item-row" key={item.id}>
                 <span className={`status-badge ${status.className}`}>{status.label}</span>
                 <span className="inventory-item-name">{item.name}</span>
+                <span className="inventory-item-qty">{item.quantity} {item.unit}</span>
 
                 <div className="inventory-item-actions">
                   <button className="icon-btn icon-btn-used" title="Mark Used" onClick={() => handleMark(item.id, 'used')}>
