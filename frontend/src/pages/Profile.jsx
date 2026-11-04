@@ -1,6 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../UserContext'
 
+
+function getInitials(name) {
+  if (!name) return ''
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
 function Profile() {
   const { currentUser, logOut } = useUser()
   const navigate = useNavigate()
@@ -25,7 +36,7 @@ function Profile() {
   return (
     <div className="page">
       <div className="profile-header">
-        <div className="avatar-large">{currentUser.initials}</div>
+        <div className="avatar-large">{getInitials(currentUser.name)}</div>
         <h1>{currentUser.name}</h1>
         <p className="subtitle">{currentUser.email}</p>
       </div>
