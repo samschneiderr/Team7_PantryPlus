@@ -29,9 +29,9 @@ function Add() {
       .then((result) => {
         if (result.success) {
           setName(result.item_name)
-          setCategory('Pantry')
+          setCategory(result.category || 'Pantry')
           setQuantity('1')
-          setScanMessage(`✓ Recognized: ${result.item_name}`)
+          setScanMessage(`✓ Recognized: ${result.item_name}. Please confirm quantity and enter the expiration date.`)
         } else {
           setScanMessage('Scan unsuccessful. Please enter the item manually.')
         }

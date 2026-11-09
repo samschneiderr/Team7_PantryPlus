@@ -5,7 +5,7 @@ from urllib.parse import urlparse, parse_qs
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from db.pantry_db import init_db, get_items_for_user, get_item, add_item, mark_item_used, mark_item_discarded
 from db.users_db import init_users_db, create_user, get_user_by_email, update_user, verify_password
-from scan_to_add import BARCODE_CATALOG, simulate_scan_success
+from scan_to_add import lookup_barcode_online
 
 PORT = 5001
 
@@ -86,13 +86,12 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
             data = self._read_json_body()
             barcode = data.get("barcode")
 
-            scan_ok = simulate_scan_success()
-            item_name = BARCODE_CATALOG.get(barcode) if scan_ok else None
-            success = scan_ok and item_name is not None
+            result = lookup_barcode_online(barcode)
 
             self._send_json(200, {
-                "success": success,
-                "item_name": item_name,
+                "success": result is not None,
+                "item_name": result["name"] if result else None,
+                "category": result["category"] if result else None,
                 "barcode": barcode,
             })
 
