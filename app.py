@@ -3,7 +3,11 @@ import json
 from datetime import date
 from urllib.parse import urlparse, parse_qs
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from db.pantry_db import init_db, get_items_for_user, get_item, add_item, mark_item_used, mark_item_discarded
+from db.pantry_db import init_db, get_items_for_user, get_item, add_item, mark_item_used, mark_item_discarded, set_min_quantity
+from low_stock_alerts import is_low_stock, add_low_stock_item_to_shopping_list
+from shopping_list import get_shopping_list, remove_from_shopping_list
+from waste_suggestions import suggest_wasted_items
+from waste_tracker import get_frequently_wasted
 from db.users_db import init_users_db, create_user, get_user_by_email, update_user, verify_password
 from scan_to_add import lookup_barcode_online
 
@@ -21,7 +25,29 @@ def get_items_formatted(user_id):
         "category": item.category,
         "status": item.status,
         "days_left": (item.expiration_date - today).days if item.expiration_date else None,
+        "min_quantity": item.min_quantity,
+        "is_low_stock": is_low_stock(item),
     } for item in get_items_for_user(user_id)]
+
+
+def parse_min_quantity(value):
+    """Turn a min_quantity from the request into a float, or None when it is blank (cleared)."""
+    if value is None or value == "":
+        return None
+    min_quantity = float(value)
+    if min_quantity < 0:
+        raise ValueError("Minimum quantity cannot be negative")
+    return min_quantity
+
+
+def get_shopping_list_formatted():
+    """Return the shopping list, marking items that are there because they're often thrown out."""
+    wasted_names = {name.lower() for name, _count in get_frequently_wasted()}
+    return [{
+        "item_name": entry["item_name"],
+        "added_at": entry["added_at"],
+        "is_waste_suggestion": entry["item_name"].lower() in wasted_names,
+    } for entry in get_shopping_list()]
 
 
 class PantryRequestHandler(BaseHTTPRequestHandler):
@@ -55,6 +81,8 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "Invalid user_id"})
                 return
             self._send_json(200, get_items_formatted(user_id))
+        elif parsed.path == "/api/shopping-list":
+            self._send_json(200, get_shopping_list_formatted())
         else:
             self.send_error(404)
 
@@ -78,8 +106,14 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "Name is required and quantity must be above 0"})
                 return
 
+            try:
+                min_quantity = parse_min_quantity(data.get("min_quantity"))
+            except ValueError:
+                self._send_json(400, {"error": "Minimum quantity must be 0 or more"})
+                return
+
             exp_date = date.fromisoformat(expiration_date_str) if expiration_date_str else None
-            item_id = add_item(name, float(quantity), unit, exp_date, category, user_id=user_id)
+            item_id = add_item(name, float(quantity), unit, exp_date, category, min_quantity=min_quantity, user_id=user_id)
             self._send_json(201, {"id": item_id, "name": name})
 
         elif parsed.path == "/api/scan":
@@ -119,6 +153,60 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "Invalid status"})
                 return
             self._send_json(200, {"success": True})
+
+        elif parsed.path.startswith("/api/items/") and parsed.path.endswith("/min-quantity"):
+            parts = parsed.path.split("/")
+            try:
+                item_id = int(parts[3])
+            except (IndexError, ValueError):
+                self._send_json(400, {"error": "Invalid item id"})
+                return
+            data = self._read_json_body()
+
+            item = get_item(item_id)
+            if item is None or item.user_id != data.get("user_id"):
+                self._send_json(404, {"error": "Item not found"})
+                return
+
+            try:
+                min_quantity = parse_min_quantity(data.get("min_quantity"))
+            except ValueError:
+                self._send_json(400, {"error": "Minimum quantity must be 0 or more"})
+                return
+            set_min_quantity(item_id, min_quantity)
+            self._send_json(200, {"success": True, "min_quantity": min_quantity})
+
+        elif parsed.path.startswith("/api/items/") and parsed.path.endswith("/add-to-shopping-list"):
+            parts = parsed.path.split("/")
+            try:
+                item_id = int(parts[3])
+            except (IndexError, ValueError):
+                self._send_json(400, {"error": "Invalid item id"})
+                return
+            data = self._read_json_body()
+
+            item = get_item(item_id)
+            if item is None or item.user_id != data.get("user_id"):
+                self._send_json(404, {"error": "Item not found"})
+                return
+
+            try:
+                result = add_low_stock_item_to_shopping_list(item_id)
+            except ValueError as error:
+                self._send_json(400, {"error": str(error)})
+                return
+            self._send_json(200, result)
+
+        elif parsed.path == "/api/shopping-list/suggestions":
+            self._send_json(200, {"added": suggest_wasted_items()})
+
+        elif parsed.path == "/api/shopping-list/remove":
+            data = self._read_json_body()
+            item_name = data.get("item_name")
+            if not item_name:
+                self._send_json(400, {"error": "item_name is required"})
+                return
+            self._send_json(200, {"removed": remove_from_shopping_list(item_name)})
 
         elif parsed.path == "/api/signup":
             data = self._read_json_body()

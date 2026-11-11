@@ -14,6 +14,10 @@ function Inventory() {
   const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [search, setSearch] = useState('')
+  const [editingMinId, setEditingMinId] = useState(null)
+  const [minDraft, setMinDraft] = useState('')
+  const [minError, setMinError] = useState('')
+  const [toast, setToast] = useState('')
 
   const loadItems = () => {
     if (!currentUser) return
@@ -47,6 +51,58 @@ function Inventory() {
     loadItems()
   }
 
+  const showToast = (message) => {
+    setToast(message)
+    setTimeout(() => setToast(''), 2500)
+  }
+
+  const startEditingMin = (item) => {
+    setEditingMinId(item.id)
+    setMinDraft(item.min_quantity ?? '')
+    setMinError('')
+  }
+
+  // A blank value clears the minimum, so the item stops being tracked for low stock.
+  const saveMin = async (itemId) => {
+    if (minDraft !== '' && Number(minDraft) < 0) {
+      setMinError('Minimum must be 0 or more')
+      return
+    }
+    const response = await fetch(`/api/items/${itemId}/min-quantity`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        min_quantity: minDraft === '' ? null : Number(minDraft),
+        user_id: currentUser.id,
+      }),
+    })
+    if (!response.ok) {
+      const data = await response.json()
+      setMinError(data.error || 'Could not save minimum')
+      return
+    }
+    setEditingMinId(null)
+    loadItems()
+  }
+
+  const handleAddToShoppingList = async (item) => {
+    const response = await fetch(`/api/items/${item.id}/add-to-shopping-list`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id }),
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      showToast(data.error || 'Could not add to shopping list')
+    } else if (data.already_existed) {
+      showToast(`${item.name} is already on your shopping list`)
+    } else {
+      showToast(`✓ Added ${item.name} to your shopping list`)
+    }
+  }
+
+  const formatQuantity = (item) => `${item.quantity} ${item.unit || ''}`.trim()
+
   const matchesSearch = (item) => item.name.toLowerCase().includes(search.toLowerCase())
 
   const activeItems = items.filter((item) => item.status === 'active' && matchesSearch(item))
@@ -56,6 +112,8 @@ function Inventory() {
 
   return (
     <div className="page">
+      {toast && <div className="toast">{toast}</div>}
+
       <h1>Inventory</h1>
       <p className="subtitle">Everything currently in your pantry</p>
 
@@ -78,11 +136,49 @@ function Inventory() {
           {activeItems.map((item) => {
             const status = getStatus(item.days_left)
             return (
-              <div className="inventory-item-row" key={item.id}>
+              <div className={`inventory-item-row${item.is_low_stock ? ' low-stock' : ''}`} key={item.id}>
                 <span className={`status-badge ${status.className}`}>{status.label}</span>
-                <span className="inventory-item-name">{item.name}</span>
+                <div className="inventory-item-details">
+                  <span className="inventory-item-name">
+                    {item.name}
+                    {item.is_low_stock && <span className="status-badge low-stock-badge">Low Stock</span>}
+                  </span>
+                  {editingMinId === item.id ? (
+                    <div className="min-quantity-edit">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        placeholder="None"
+                        value={minDraft}
+                        onChange={(e) => setMinDraft(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && saveMin(item.id)}
+                        autoFocus
+                      />
+                      <button className="min-quantity-link" onClick={() => saveMin(item.id)}>Save</button>
+                      <button className="min-quantity-link" onClick={() => setEditingMinId(null)}>Cancel</button>
+                      {minError && <span className="min-quantity-error">{minError}</span>}
+                    </div>
+                  ) : (
+                    <span className="inventory-item-meta">
+                      {formatQuantity(item)} ·{' '}
+                      <button className="min-quantity-link" onClick={() => startEditingMin(item)}>
+                        {item.min_quantity === null ? 'Set minimum' : `Min ${item.min_quantity}`}
+                      </button>
+                    </span>
+                  )}
+                </div>
 
                 <div className="inventory-item-actions">
+                  {item.is_low_stock && (
+                    <button className="icon-btn icon-btn-cart" title="Add to Shopping List" onClick={() => handleAddToShoppingList(item)}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="9" cy="21" r="1" />
+                        <circle cx="20" cy="21" r="1" />
+                        <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
+                      </svg>
+                    </button>
+                  )}
                   <button className="icon-btn icon-btn-used" title="Mark Used" onClick={() => handleMark(item.id, 'used')}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polyline points="20 6 9 17 4 12" />

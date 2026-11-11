@@ -12,6 +12,7 @@ function Add() {
   const [unit, setUnit] = useState('')
   const [category, setCategory] = useState('')
   const [expirationDate, setExpirationDate] = useState('')
+  const [minQuantity, setMinQuantity] = useState('')
   const [errors, setErrors] = useState({})
   const [showToast, setShowToast] = useState(false)
   const [scanMessage, setScanMessage] = useState('')
@@ -54,6 +55,7 @@ function Add() {
     const newErrors = {}
     if (!name.trim()) newErrors.name = 'Name is required'
     if (!quantity || Number(quantity) <= 0) newErrors.quantity = 'Quantity must be above 0'
+    if (minQuantity !== '' && Number(minQuantity) < 0) newErrors.minQuantity = 'Minimum must be 0 or more'
     return newErrors
   }
 
@@ -63,6 +65,7 @@ function Add() {
     setUnit('')
     setCategory('')
     setExpirationDate('')
+    setMinQuantity('')
     setScanMessage('')
   }
 
@@ -85,6 +88,7 @@ function Add() {
           unit,
           category,
           expiration_date: expirationDate || null,
+          min_quantity: minQuantity === '' ? null : Number(minQuantity),
           user_id: currentUser.id,
         }),
       })
@@ -177,6 +181,21 @@ function Add() {
             value={expirationDate}
             onChange={(e) => setExpirationDate(e.target.value)}
           />
+        </div>
+
+        <div className="field">
+          <label>Minimum Quantity (optional)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            className="value"
+            style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent' }}
+            value={minQuantity}
+            onChange={(e) => setMinQuantity(e.target.value)}
+            placeholder="Alert me when I'm down to..."
+          />
+          {errors.minQuantity && <p style={{ color: '#c0392b', fontSize: '12px', marginTop: '4px' }}>{errors.minQuantity}</p>}
         </div>
 
         {errors.form && <p style={{ color: '#c0392b', fontSize: '13px', marginBottom: '12px' }}>{errors.form}</p>}
