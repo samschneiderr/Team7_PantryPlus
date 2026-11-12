@@ -500,3 +500,16 @@ body {
   background: #000;
   min-height: 300px;
 }
+.see-all {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 12px;
+  padding: 10px;
+}
+.see-all:hover {
+  color: var(--green);
+}
