@@ -59,6 +59,22 @@ def set_min_quantity(item_id, min_quantity):
     conn.commit(); conn.close()
     return cur.rowcount > 0
 
+def reduce_quantity(item_id, amount):
+    """
+    Reduce an item's quantity by the given amount, without going below 0.
+    Returns the item's new quantity, or None if the item doesn't exist.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT quantity FROM pantry_items WHERE id = ?", (item_id,)).fetchone()
+    if row is None:
+        conn.close()
+        return None
+    new_quantity = max(0, row[0] - amount)
+    conn.execute("UPDATE pantry_items SET quantity = ? WHERE id = ?", (new_quantity, item_id))
+    conn.commit()
+    conn.close()
+    return new_quantity
+
 def update_item(item_id, **fields):
     conn = sqlite3.connect(DB_PATH)
     for key, value in fields.items():

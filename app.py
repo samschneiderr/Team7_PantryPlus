@@ -3,7 +3,7 @@ import json
 from datetime import date
 from urllib.parse import urlparse, parse_qs
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from db.pantry_db import init_db, get_items_for_user, get_item, add_item, mark_item_used, mark_item_discarded
+from db.pantry_db import init_db, get_items_for_user, get_item, add_item, mark_item_used, mark_item_discarded, update_item, reduce_quantity
 from db.users_db import init_users_db, create_user, get_user_by_email, update_user, verify_password
 from db.activity_db import init_activity_db, log_activity, get_activity_for_user
 from scan_to_add import lookup_barcode_online
@@ -21,6 +21,7 @@ def get_items_formatted(user_id):
         "unit": item.unit,
         "category": item.category,
         "status": item.status,
+        "expiration_date": item.expiration_date.isoformat() if item.expiration_date else None,
         "days_left": (item.expiration_date - today).days if item.expiration_date else None,
     } for item in get_items_for_user(user_id)]
 
@@ -128,21 +129,55 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
             data = self._read_json_body()
             user_id = data.get("user_id")
             new_status = data.get("status")
+            amount = data.get("amount")
+
+            item = get_item(item_id)
+            if item is None or item.user_id != user_id:
+                self._send_json(404, {"error": "Item not found"})
+                return
+            if new_status not in ("used", "thrown_out"):
+                self._send_json(400, {"error": "Invalid status"})
+                return
+
+            if amount is not None and amount < item.quantity:
+                reduce_quantity(item_id, amount)
+                add_item(item.name, amount, item.unit, item.expiration_date, item.category, status=new_status, user_id=user_id)
+                log_activity(user_id, new_status, f"{amount} {item.unit} of {item.name}")
+            else:
+                if new_status == "used":
+                    mark_item_used(item_id)
+                else:
+                    mark_item_discarded(item_id)
+                log_activity(user_id, new_status, item.name)
+
+            self._send_json(200, {"success": True})
+
+        elif parsed.path.startswith("/api/items/") and parsed.path.endswith("/edit"):
+            parts = parsed.path.split("/")
+            try:
+                item_id = int(parts[3])
+            except (IndexError, ValueError):
+                self._send_json(400, {"error": "Invalid item id"})
+                return
+            data = self._read_json_body()
+            user_id = data.get("user_id")
 
             item = get_item(item_id)
             if item is None or item.user_id != user_id:
                 self._send_json(404, {"error": "Item not found"})
                 return
 
-            if new_status == "used":
-                mark_item_used(item_id)
-                log_activity(user_id, "used", item.name)
-            elif new_status == "thrown_out":
-                mark_item_discarded(item_id)
-                log_activity(user_id, "thrown_out", item.name)
-            else:
-                self._send_json(400, {"error": "Invalid status"})
-                return
+            fields = {}
+            if "name" in data:
+                fields["name"] = data["name"]
+            if "category" in data:
+                fields["category"] = data["category"]
+            if "expiration_date" in data:
+                fields["expiration_date"] = data["expiration_date"]
+
+            if fields:
+                update_item(item_id, **fields)
+
             self._send_json(200, {"success": True})
 
         elif parsed.path == "/api/signup":
