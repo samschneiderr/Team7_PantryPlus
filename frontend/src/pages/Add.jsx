@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useUser } from '../UserContext'
+
+const CATEGORY_SUGGESTIONS = ['Pantry', 'Dairy', 'Produce', 'Meat', 'Frozen', 'Beverages', 'Snacks', 'Other']
+
+function todayString() {
+  const d = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
 
 function Add() {
+  const { currentUser } = useUser()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -13,6 +23,7 @@ function Add() {
   const [errors, setErrors] = useState({})
   const [showToast, setShowToast] = useState(false)
   const [scanMessage, setScanMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     const barcode = searchParams.get('barcode')
@@ -21,25 +32,51 @@ function Add() {
     fetch('/api/scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode }),
+      body: JSON.stringify({ barcode, user_id: currentUser?.id }),
     })
       .then((res) => res.json())
       .then((result) => {
         if (result.success) {
           setName(result.item_name)
-          setCategory('Pantry')
+          setCategory(result.category || 'Pantry')
           setQuantity('1')
-          setScanMessage(`✓ Recognized: ${result.item_name}`)
+          setScanMessage(`✓ Recognized: ${result.item_name}. Please confirm quantity and enter the expiration date.`)
         } else {
           setScanMessage('Scan unsuccessful. Please enter the item manually.')
         }
       })
-  }, [searchParams])
+      .catch(() => setScanMessage('Scan unsuccessful. Please enter the item manually.'))
+  }, [searchParams, currentUser])
 
+  if (!currentUser) {
+    return (
+      <div className="page">
+        <h1>Add Item</h1>
+        <p className="subtitle">You're not logged in yet</p>
+        <button className="btn-primary" onClick={() => navigate('/login')}>
+          Go to Login
+        </button>
+      </div>
+    )
+  }
+
+  // Validation rules (documented for the SCRUM notes):
+  //  - name: required after trimming, max 60 characters
+  //  - quantity: required, a number above 0, max 9999
+  //  - expiration date: optional, but cannot be in the past
+  //  - unit and category: optional
   const validate = () => {
     const newErrors = {}
-    if (!name.trim()) newErrors.name = 'Name is required'
-    if (!quantity || Number(quantity) <= 0) newErrors.quantity = 'Quantity must be above 0'
+    if (!name.trim()) newErrors.name = 'Enter a name for the item.'
+    else if (name.trim().length > 60) newErrors.name = 'Name must be 60 characters or fewer.'
+
+    if (quantity === '') newErrors.quantity = 'Enter a quantity.'
+    else if (Number.isNaN(Number(quantity)) || Number(quantity) <= 0) newErrors.quantity = 'Quantity must be above 0.'
+    else if (Number(quantity) > 9999) newErrors.quantity = 'Quantity must be 9999 or less.'
+
+    if (expirationDate && expirationDate < todayString()) {
+      newErrors.expirationDate = "Expiration date can't be in the past."
+    }
     return newErrors
   }
 
@@ -52,25 +89,37 @@ function Add() {
     setScanMessage('')
   }
 
+  // Typing in a field clears that field's error so the message doesn't linger
+  const handleChange = (field, setter) => (e) => {
+    setter(e.target.value)
+    if (errors[field] || errors.form) {
+      setErrors((prev) => ({ ...prev, [field]: undefined, form: undefined }))
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (submitting) return
+
     const validationErrors = validate()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
       return
     }
     setErrors({})
+    setSubmitting(true)
 
     try {
       const response = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
+          name: name.trim(),
           quantity: Number(quantity),
-          unit,
-          category,
+          unit: unit.trim(),
+          category: category.trim(),
           expiration_date: expirationDate || null,
+          user_id: currentUser.id,
         }),
       })
 
@@ -79,94 +128,107 @@ function Add() {
         setShowToast(true)
         setTimeout(() => setShowToast(false), 2500)
       } else {
-        const data = await response.json()
-        setErrors({ form: data.error || 'Something went wrong' })
+        const data = await response.json().catch(() => ({}))
+        setErrors({ form: data.error || 'Something went wrong. Please try again.' })
       }
     } catch (err) {
       setErrors({ form: 'Could not reach the server. Is it running?' })
+    } finally {
+      setSubmitting(false)
     }
   }
 
   return (
     <div className="page">
-      {showToast && <div className="toast">✓ Log successful</div>}
+      {showToast && <div className="toast">✓ Item added</div>}
 
       <h1>Add Item</h1>
       <p className="subtitle">Manually add an item to your pantry</p>
 
       {scanMessage && (
-        <p style={{ color: scanMessage.startsWith('✓') ? 'var(--green-dark)' : '#c0392b', fontSize: '13px', marginBottom: '14px', fontWeight: 700 }}>
+        <p className={scanMessage.startsWith('✓') ? 'scan-message scan-ok' : 'scan-message scan-fail'}>
           {scanMessage}
         </p>
       )}
 
-      <form onSubmit={handleSubmit} className="detect-card">
+      <form onSubmit={handleSubmit} className="detect-card" noValidate>
         <div className="field">
-          <label>Name</label>
+          <label htmlFor="item-name">Name</label>
           <input
+            id="item-name"
             type="text"
-            className="value"
-            style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent' }}
+            className="value form-input"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={handleChange('name', setName)}
             placeholder="Peanut Butter"
+            autoFocus
           />
-          {errors.name && <p style={{ color: '#c0392b', fontSize: '12px', marginTop: '4px' }}>{errors.name}</p>}
+          {errors.name && <p className="field-error">{errors.name}</p>}
         </div>
 
         <div className="field">
-          <label>Quantity</label>
+          <label htmlFor="item-quantity">Quantity</label>
           <input
+            id="item-quantity"
             type="number"
             min="0"
-            step="0.1"
-            className="value"
-            style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent' }}
+            step="any"
+            className="value form-input"
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            onChange={handleChange('quantity', setQuantity)}
             placeholder="1"
           />
-          {errors.quantity && <p style={{ color: '#c0392b', fontSize: '12px', marginTop: '4px' }}>{errors.quantity}</p>}
+          {errors.quantity && <p className="field-error">{errors.quantity}</p>}
         </div>
 
         <div className="field">
-          <label>Unit</label>
+          <label htmlFor="item-unit">Unit</label>
           <input
+            id="item-unit"
             type="text"
-            className="value"
-            style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent' }}
+            className="value form-input"
             value={unit}
-            onChange={(e) => setUnit(e.target.value)}
+            onChange={handleChange('unit', setUnit)}
             placeholder="jar, lb, carton..."
           />
         </div>
 
         <div className="field">
-          <label>Category</label>
+          <label htmlFor="item-category">Category</label>
           <input
+            id="item-category"
             type="text"
-            className="value"
-            style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent' }}
+            list="category-options"
+            className="value form-input"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={handleChange('category', setCategory)}
             placeholder="Pantry, Dairy, Produce..."
           />
+          <datalist id="category-options">
+            {CATEGORY_SUGGESTIONS.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
         </div>
 
         <div className="field">
-          <label>Expiration Date</label>
+          <label htmlFor="item-expiration">Expiration Date (optional)</label>
           <input
+            id="item-expiration"
             type="date"
-            className="value"
-            style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent' }}
+            min={todayString()}
+            className="value form-input"
             value={expirationDate}
-            onChange={(e) => setExpirationDate(e.target.value)}
+            onChange={handleChange('expirationDate', setExpirationDate)}
           />
+          {errors.expirationDate && <p className="field-error">{errors.expirationDate}</p>}
         </div>
 
-        {errors.form && <p style={{ color: '#c0392b', fontSize: '13px', marginBottom: '12px' }}>{errors.form}</p>}
+        {errors.form && <p className="form-error">{errors.form}</p>}
 
-        <button type="submit" className="btn-primary">Add Item</button>
+        <button type="submit" className="btn-primary" disabled={submitting}>
+          {submitting ? 'Adding…' : 'Add Item'}
+        </button>
       </form>
     </div>
   )
