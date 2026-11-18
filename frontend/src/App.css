@@ -238,7 +238,7 @@ body {
 
 .inventory-item-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
@@ -252,6 +252,11 @@ body {
   font-size: 14px;
   color: var(--text);
   font-weight: 600;
+}
+.inventory-item-qty {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 .inventory-item-actions {
   display: flex;
@@ -499,6 +504,84 @@ body {
   overflow: hidden;
   background: #000;
   min-height: 300px;
+}
+/* Inventory page: sort and category controls, retry and empty-state buttons */
+.inventory-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.inventory-control {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.inventory-control select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text);
+  background: #fff;
+  cursor: pointer;
+}
+.inventory-control select:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+}
+.inventory-retry,
+.inventory-empty-link {
+  margin: 12px auto 0;
+  max-width: 220px;
+  cursor: pointer;
+}
+/* Fixes invisible typed text: in dark mode the browser makes input text light,
+   but the cards are hard-coded white. Force a readable color and light controls. */
+.page input,
+.page select {
+  color: var(--text);
+  color-scheme: light;
+}
+.field .form-input {
+  width: 100%;
+  outline: none;
+  background: #fff;
+}
+.field .form-input:focus {
+  border-color: var(--green);
+}
+.field .form-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* Add Item form messages */
+.field-error {
+  color: #c0392b;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.form-error {
+  color: #c0392b;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.scan-message {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+.scan-ok { color: var(--green-dark); }
+.scan-fail { color: #c0392b; }
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .see-all {
   display: block;
