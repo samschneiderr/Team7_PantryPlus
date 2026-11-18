@@ -1,7 +1,8 @@
 """
 scan_to_add.py
 
-Simulates the Scan-to-Add barcode function for PantryPlus (REQ002).
+Simulates the Scan-to-Add barcode function for PantryPlus (REQ002), and
+also provides a real barcode lookup using the free Open Food Facts API.
 
 Requirement being satisfied:
     "Scan and recognize barcodes on items added to pantry with >=98%
@@ -13,6 +14,9 @@ Acceptance criteria:
 
 import random
 import sqlite3
+import json
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone
 
 # A tiny "known barcode" lookup table standing in for a real product API
@@ -119,6 +123,33 @@ def scan_to_add(barcode, db_path="pantry.db", conn=None):
         "barcode": barcode,
         "timestamp": timestamp,
     }
+
+
+def lookup_barcode_online(barcode, timeout=5):
+    """
+    Look up a real product by barcode using the free, public Open Food
+    Facts API (no API key required). Returns {"name": str, "category": str}
+    if the product is found, or None if it's not found or the request fails.
+    """
+    url = f"https://world.openfoodfacts.org/api/v2/product/{barcode}.json?fields=product_name,categories"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            data = json.loads(response.read().decode())
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        return None
+
+    if data.get("status") != 1:
+        return None
+
+    product = data.get("product", {})
+    name = product.get("product_name")
+    if not name:
+        return None
+
+    categories = product.get("categories", "")
+    category = categories.split(",")[0].strip() if categories else "Pantry"
+
+    return {"name": name, "category": category}
 
 
 if __name__ == "__main__":

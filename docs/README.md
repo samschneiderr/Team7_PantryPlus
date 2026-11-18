@@ -1,31 +1,33 @@
 # PantryPlus
 
-PantryPlus is a smart pantry management app that helps users track the food items in their pantry, monitor expiration dates, and reduce food waste. Users can add items manually or by scanning a barcode with their device's camera, and track their pantry's health at a glance from the home dashboard.
+PantryPlus tracks what’s in your pantry, so nothing quietly expires. Add items by scanning a real barcode (auto-filled from a database of millions of products) or typing them in by hand. See what’s expiring soon on Home, browse and manage everything on Inventory, get flagged when something’s low and add it to your Shopping List in one tap, and look back through an Activity feed of everything you’ve done. Each account has its own private, isolated pantry data. Built with Python, SQLite, and React, with a real camera scanner connected to the Open Food Facts database.
 
-## Features
+## What You Can Do
 
-- **Camera-based barcode scanning** — point your device's camera at a barcode to quickly add an item, powered by a live embedded scanner and a backend lookup simulating real-world scan reliability (~98% success rate)
-- **Manual item entry** — add pantry items by hand with name, quantity, unit, category, and expiration date, with input validation
-- **Expiration tracking** — items are automatically flagged as Fresh, Expiring Soon, or Expired based on their expiration date
-- **Inventory management** — view all pantry items sorted by stock level, search by name, and mark items as Used or Thrown Out
-- **Home dashboard** — see what's expiring soon and a quick snapshot of your pantry at a glance
-- **User accounts** — sign up, log in, and edit household preferences (household size, dietary preferences), backed by a real database
-- **Waste tracking** — frequently wasted items are detected and surfaced to help reduce future waste
+📷 **Scan a barcode** — point your camera at a real product and it gets added automatically, no typing needed
 
-## Coming Soon
+✏️ **Add items by hand** — or type in anything you want to track, with the name, quantity, category, and expiration date
 
-- Shopping list suggestions based on waste patterns
-- Activity feed showing recent pantry actions
-- Password verification and hashing for user accounts (currently stored but not yet verified)
+🏠 **See your pantry at a glance** — the Home screen shows what's expiring soon and a quick snapshot of everything you have
 
-## Tech Stack
+📋 **View your full inventory** — see everything you own, search by name, and mark things as used or thrown out
 
-- **Backend:** Python, SQLite
-- **Frontend:** React (Vite), React Router
-- **API:** A lightweight Python HTTP server bridging the frontend and backend database
+🔔 **Get low-stock alerts** — set a minimum amount for any item, and it gets flagged when you're running low
 
-## Getting Started
+🛒 **Keep a shopping list** — check items off as you buy them, and get automatic suggestions based on what you tend to waste
 
-1. Start the backend: `python app.py` (runs on `localhost:5001`)
-2. Start the frontend: `cd frontend && npm install && npm run dev` (runs on `localhost:5173`)
-3. Open `http://localhost:5173` in your browser
+📜 **See your activity history** — every scan, add, and update you've made, in one simple feed
+
+👤 **Your own account** — sign up, log in, and your pantry is yours alone, nobody else can see or change it
+
+## Still Being Built
+
+- Sorting and filtering options on the Inventory page
+- A "forgot password" option for logging in
+- Making logins more secure behind the scenes
+
+## How It's Built
+
+- **Backend:** Python + SQLite (a simple, lightweight database)
+- **Frontend:** React, built with Vite
+- **Real barcode data:** pulled from Open Food Facts, a free, public database of real products

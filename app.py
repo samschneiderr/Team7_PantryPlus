@@ -1,16 +1,18 @@
 """Serves pantry data and user accounts as JSON for the frontend."""
 import json
 from datetime import date
+from urllib.parse import urlparse, parse_qs
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from db.pantry_db import init_db, get_all_items, add_item, mark_item_used, mark_item_discarded
+from db.pantry_db import init_db, get_items_for_user, get_item, add_item, mark_item_used, mark_item_discarded, update_item, reduce_quantity
 from db.users_db import init_users_db, create_user, get_user_by_email, update_user, verify_password
-from scan_to_add import BARCODE_CATALOG, simulate_scan_success
+from db.activity_db import init_activity_db, log_activity, get_activity_for_user
+from scan_to_add import lookup_barcode_online
 
 PORT = 5001
 
 
-def get_items_formatted():
-    """Return all pantry items as dicts with days left until expiration."""
+def get_items_formatted(user_id):
+    """Return this user's pantry items as dicts with days left until expiration."""
     today = date.today()
     return [{
         "id": item.id,
@@ -19,8 +21,9 @@ def get_items_formatted():
         "unit": item.unit,
         "category": item.category,
         "status": item.status,
+        "expiration_date": item.expiration_date.isoformat() if item.expiration_date else None,
         "days_left": (item.expiration_date - today).days if item.expiration_date else None,
-    } for item in get_all_items()]
+    } for item in get_items_for_user(user_id)]
 
 
 class PantryRequestHandler(BaseHTTPRequestHandler):
@@ -40,63 +43,144 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
         return json.loads(raw) if raw else {}
 
     def do_GET(self):
-        """Respond to GET /api/items with all pantry items."""
-        if self.path == "/api/items":
-            self._send_json(200, get_items_formatted())
+        """Handle GET /api/items and GET /api/activity."""
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+
+        if parsed.path == "/api/items":
+            user_id_str = params.get("user_id", [None])[0]
+            if not user_id_str:
+                self._send_json(400, {"error": "user_id is required"})
+                return
+            try:
+                user_id = int(user_id_str)
+            except ValueError:
+                self._send_json(400, {"error": "Invalid user_id"})
+                return
+            self._send_json(200, get_items_formatted(user_id))
+
+        elif parsed.path == "/api/activity":
+            user_id_str = params.get("user_id", [None])[0]
+            if not user_id_str:
+                self._send_json(400, {"error": "user_id is required"})
+                return
+            try:
+                user_id = int(user_id_str)
+            except ValueError:
+                self._send_json(400, {"error": "Invalid user_id"})
+                return
+            self._send_json(200, get_activity_for_user(user_id))
+
         else:
             self.send_error(404)
 
     def do_POST(self):
         """Handle all POST endpoints."""
-        if self.path == "/api/items":
+        parsed = urlparse(self.path)
+
+        if parsed.path == "/api/items":
             data = self._read_json_body()
             name = data.get("name")
             quantity = data.get("quantity")
             unit = data.get("unit", "")
             category = data.get("category", "")
             expiration_date_str = data.get("expiration_date")
+            user_id = data.get("user_id")
 
+            if not user_id:
+                self._send_json(400, {"error": "user_id is required"})
+                return
             if not name or quantity is None or float(quantity) <= 0:
                 self._send_json(400, {"error": "Name is required and quantity must be above 0"})
                 return
 
             exp_date = date.fromisoformat(expiration_date_str) if expiration_date_str else None
-            item_id = add_item(name, float(quantity), unit, exp_date, category)
+            item_id = add_item(name, float(quantity), unit, exp_date, category, user_id=user_id)
+            log_activity(user_id, "added", name)
             self._send_json(201, {"id": item_id, "name": name})
 
-        elif self.path == "/api/scan":
+        elif parsed.path == "/api/scan":
             data = self._read_json_body()
             barcode = data.get("barcode")
+            user_id = data.get("user_id")
 
-            scan_ok = simulate_scan_success()
-            item_name = BARCODE_CATALOG.get(barcode) if scan_ok else None
-            success = scan_ok and item_name is not None
+            result = lookup_barcode_online(barcode)
+
+            if user_id:
+                if result:
+                    log_activity(user_id, "scan_success", result["name"])
+                else:
+                    log_activity(user_id, "scan_failed", barcode)
 
             self._send_json(200, {
-                "success": success,
-                "item_name": item_name,
+                "success": result is not None,
+                "item_name": result["name"] if result else None,
+                "category": result["category"] if result else None,
                 "barcode": barcode,
             })
 
-        elif self.path.startswith("/api/items/") and self.path.endswith("/status"):
-            parts = self.path.split("/")
+        elif parsed.path.startswith("/api/items/") and parsed.path.endswith("/status"):
+            parts = parsed.path.split("/")
             try:
                 item_id = int(parts[3])
             except (IndexError, ValueError):
                 self._send_json(400, {"error": "Invalid item id"})
                 return
             data = self._read_json_body()
+            user_id = data.get("user_id")
             new_status = data.get("status")
-            if new_status == "used":
-                mark_item_used(item_id)
-            elif new_status == "thrown_out":
-                mark_item_discarded(item_id)
-            else:
+            amount = data.get("amount")
+
+            item = get_item(item_id)
+            if item is None or item.user_id != user_id:
+                self._send_json(404, {"error": "Item not found"})
+                return
+            if new_status not in ("used", "thrown_out"):
                 self._send_json(400, {"error": "Invalid status"})
                 return
+
+            if amount is not None and amount < item.quantity:
+                reduce_quantity(item_id, amount)
+                add_item(item.name, amount, item.unit, item.expiration_date, item.category, status=new_status, user_id=user_id)
+                log_activity(user_id, new_status, f"{amount} {item.unit} of {item.name}")
+            else:
+                if new_status == "used":
+                    mark_item_used(item_id)
+                else:
+                    mark_item_discarded(item_id)
+                log_activity(user_id, new_status, item.name)
+
             self._send_json(200, {"success": True})
 
-        elif self.path == "/api/signup":
+        elif parsed.path.startswith("/api/items/") and parsed.path.endswith("/edit"):
+            parts = parsed.path.split("/")
+            try:
+                item_id = int(parts[3])
+            except (IndexError, ValueError):
+                self._send_json(400, {"error": "Invalid item id"})
+                return
+            data = self._read_json_body()
+            user_id = data.get("user_id")
+
+            item = get_item(item_id)
+            if item is None or item.user_id != user_id:
+                self._send_json(404, {"error": "Item not found"})
+                return
+
+            fields = {}
+            if "name" in data:
+                fields["name"] = data["name"]
+            if "category" in data:
+                fields["category"] = data["category"]
+            if "expiration_date" in data:
+                fields["expiration_date"] = data["expiration_date"]
+
+            if fields:
+                update_item(item_id, **fields)
+
+            self._send_json(200, {"success": True})
+
+        elif parsed.path == "/api/signup":
             data = self._read_json_body()
             name = data.get("name")
             email = data.get("email")
@@ -115,18 +199,19 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
 
             self._send_json(201, get_user_by_email(email))
 
-        elif self.path == "/api/login":
+        elif parsed.path == "/api/login":
             data = self._read_json_body()
             email = data.get("email")
             password = data.get("password")
+
             if not verify_password(email, password):
                 self._send_json(401, {"error": "Incorrect email or password"})
                 return
 
             self._send_json(200, get_user_by_email(email))
 
-        elif self.path.startswith("/api/users/") and self.path.endswith("/update"):
-            parts = self.path.split("/")
+        elif parsed.path.startswith("/api/users/") and parsed.path.endswith("/update"):
+            parts = parsed.path.split("/")
             try:
                 user_id = int(parts[3])
             except (IndexError, ValueError):
@@ -143,4 +228,5 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     init_db()
     init_users_db()
+    init_activity_db()
     HTTPServer(("localhost", PORT), PantryRequestHandler).serve_forever()

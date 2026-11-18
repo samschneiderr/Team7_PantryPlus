@@ -1,14 +1,30 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useUser } from '../UserContext'
 
 function Home() {
+  const { currentUser } = useUser()
+  const navigate = useNavigate()
   const [items, setItems] = useState([])
 
   useEffect(() => {
-    fetch('/api/items')
+    if (!currentUser) return
+    fetch(`/api/items?user_id=${currentUser.id}`)
       .then(response => response.json())
       .then(setItems)
-  }, [])
+  }, [currentUser])
+
+  if (!currentUser) {
+    return (
+      <div className="page">
+        <h1>Home</h1>
+        <p className="subtitle">You're not logged in yet</p>
+        <button className="btn-primary" onClick={() => navigate('/login')}>
+          Go to Login
+        </button>
+      </div>
+    )
+  }
 
   const activeItems = items.filter(item => item.status === 'active')
   const expiringSoon = activeItems.filter(item => item.days_left !== null && item.days_left <= 3)

@@ -10,6 +10,7 @@ function ScanCamera() {
   useEffect(() => {
     let isMounted = true
     let hasStarted = false
+    let isStopped = false
     const scanner = new Html5Qrcode('camera-view')
     scannerRef.current = scanner
 
@@ -18,12 +19,15 @@ function ScanCamera() {
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 150 } },
         (decodedText) => {
-          if (!isMounted) return
+          if (!isMounted || isStopped) return
+          isStopped = true
           scanner
             .stop()
             .catch(() => {})
             .finally(() => {
-              navigate(`/add?barcode=${encodeURIComponent(decodedText)}`)
+              setTimeout(() => {
+                navigate(`/add?barcode=${encodeURIComponent(decodedText)}`)
+              }, 150)
             })
         },
         () => {
@@ -39,7 +43,8 @@ function ScanCamera() {
 
     return () => {
       isMounted = false
-      if (hasStarted) {
+      if (hasStarted && !isStopped) {
+        isStopped = true
         scanner.stop().catch(() => {})
       }
     }
