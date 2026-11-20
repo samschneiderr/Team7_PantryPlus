@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useUser } from '../UserContext'
 
-// The backend has no "checked" state, so checked-off items are remembered in this browser.
 const CHECKED_STORAGE_KEY = 'pantryplus-shopping-checked'
 
 function loadCheckedNames() {
@@ -20,27 +20,45 @@ function saveCheckedNames(names) {
 }
 
 function Shopping() {
+  const { currentUser } = useUser()
   const [items, setItems] = useState([])
   const [checkedNames, setCheckedNames] = useState(loadCheckedNames)
   const [newSuggestions, setNewSuggestions] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [newItemName, setNewItemName] = useState('')
+  const [addError, setAddError] = useState('')
 
-  const loadList = () =>
-    fetch('/api/shopping-list')
+  const loadList = () => {
+    if (!currentUser) return Promise.resolve()
+    return fetch(`/api/shopping-list?user_id=${currentUser.id}`)
       .then((response) => response.json())
       .then(setItems)
+  }
 
   useEffect(() => {
-    // Add frequently wasted foods first (waste_suggestions.py), then show the full list.
-    fetch('/api/shopping-list/suggestions', { method: 'POST' })
+    if (!currentUser) return
+    fetch('/api/shopping-list/suggestions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id }),
+    })
       .then((response) => response.json())
       .then((data) => setNewSuggestions(data.added || []))
       .catch(() => {})
       .then(loadList)
       .catch(() => setError('Could not reach the server. Is it running?'))
       .finally(() => setIsLoading(false))
-  }, [])
+  }, [currentUser])
+
+  if (!currentUser) {
+    return (
+      <div className="page">
+        <h1>Shopping List</h1>
+        <p className="subtitle">You're not logged in yet</p>
+      </div>
+    )
+  }
 
   const updateChecked = (names) => {
     setCheckedNames(names)
@@ -59,9 +77,31 @@ function Shopping() {
     await fetch('/api/shopping-list/remove', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ item_name: itemName }),
+      body: JSON.stringify({ item_name: itemName, user_id: currentUser.id }),
     })
     updateChecked(checkedNames.filter((name) => name !== itemName))
+    loadList()
+  }
+
+  const handleAddManual = async (e) => {
+    e.preventDefault()
+    setAddError('')
+    const trimmedName = newItemName.trim()
+    if (!trimmedName) {
+      setAddError('Enter an item name')
+      return
+    }
+    const response = await fetch('/api/shopping-list/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_name: trimmedName, user_id: currentUser.id }),
+    })
+    const data = await response.json()
+    if (!data.added) {
+      setAddError(`"${trimmedName}" is already on your list`)
+    } else {
+      setNewItemName('')
+    }
     loadList()
   }
 
@@ -96,6 +136,21 @@ function Shopping() {
       <h1>Shopping List</h1>
       <p className="subtitle">What you need to pick up next trip</p>
 
+      <form className="field" onSubmit={handleAddManual} style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+        <input
+          type="text"
+          className="value"
+          style={{ flex: 1, border: '1px solid var(--border)', outline: 'none' }}
+          placeholder="Add an item..."
+          value={newItemName}
+          onChange={(e) => setNewItemName(e.target.value)}
+        />
+        <button type="submit" className="btn-manual" style={{ whiteSpace: 'nowrap' }}>
+          + Add
+        </button>
+      </form>
+      {addError && <p style={{ color: '#c0392b', fontSize: '13px', marginTop: '-12px', marginBottom: '16px' }}>{addError}</p>}
+
       {newSuggestions.length > 0 && (
         <div className="suggestion-note">
           Added {newSuggestions.join(', ')} because you've thrown {newSuggestions.length === 1 ? 'it' : 'them'} out
@@ -108,7 +163,7 @@ function Shopping() {
       {isLoading ? null : items.length === 0 ? (
         <div className="empty">
           <p>Your shopping list is empty.</p>
-          <p>Low-stock items from your Inventory can be added with one tap.</p>
+          <p>Add an item above, or low-stock items from your Inventory can be added with one tap.</p>
         </div>
       ) : (
         <>

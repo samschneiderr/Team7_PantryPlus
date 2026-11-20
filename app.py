@@ -7,6 +7,7 @@ from db.pantry_db import init_db, get_items_for_user, get_item, add_item, mark_i
 from db.users_db import init_users_db, create_user, get_user_by_email, update_user, verify_password
 from db.activity_db import init_activity_db, log_activity, get_activity_for_user
 from scan_to_add import lookup_barcode_online
+from db.shopping_db import init_shopping_db, get_shopping_list, add_to_shopping_list, remove_from_shopping_list, get_frequently_wasted_items
 
 PORT = 5001
 
@@ -43,7 +44,7 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
         return json.loads(raw) if raw else {}
 
     def do_GET(self):
-        """Handle GET /api/items and GET /api/activity."""
+        """Handle GET /api/items, /api/activity, and /api/shopping-list."""
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
 
@@ -70,6 +71,18 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "Invalid user_id"})
                 return
             self._send_json(200, get_activity_for_user(user_id))
+
+        elif parsed.path == "/api/shopping-list":
+            user_id_str = params.get("user_id", [None])[0]
+            if not user_id_str:
+                self._send_json(400, {"error": "user_id is required"})
+                return
+            try:
+                user_id = int(user_id_str)
+            except ValueError:
+                self._send_json(400, {"error": "Invalid user_id"})
+                return
+            self._send_json(200, get_shopping_list(user_id))
 
         else:
             self.send_error(404)
@@ -99,6 +112,16 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
             log_activity(user_id, "added", name)
             self._send_json(201, {"id": item_id, "name": name})
 
+        elif parsed.path == "/api/shopping-list/add":
+            data = self._read_json_body()
+            item_name = data.get("item_name")
+            user_id = data.get("user_id")
+            if not item_name or not user_id:
+                self._send_json(400, {"error": "item_name and user_id are required"})
+                return
+            added = add_to_shopping_list(user_id, item_name)
+            self._send_json(200, {"added": added})
+
         elif parsed.path == "/api/scan":
             data = self._read_json_body()
             barcode = data.get("barcode")
@@ -118,6 +141,27 @@ class PantryRequestHandler(BaseHTTPRequestHandler):
                 "category": result["category"] if result else None,
                 "barcode": barcode,
             })
+
+        elif parsed.path == "/api/shopping-list/suggestions":
+            data = self._read_json_body()
+            user_id = data.get("user_id")
+            if not user_id:
+                self._send_json(400, {"error": "user_id is required"})
+                return
+            wasted_items = get_frequently_wasted_items(user_id)
+            added = []
+            for name in wasted_items:
+                if add_to_shopping_list(user_id, name, is_waste_suggestion=True):
+                    added.append(name)
+            self._send_json(200, {"added": added})
+
+        elif parsed.path == "/api/shopping-list/remove":
+            data = self._read_json_body()
+            item_name = data.get("item_name")
+            user_id = data.get("user_id")
+            if item_name and user_id:
+                remove_from_shopping_list(user_id, item_name)
+            self._send_json(200, {"success": True})
 
         elif parsed.path.startswith("/api/items/") and parsed.path.endswith("/status"):
             parts = parsed.path.split("/")
@@ -229,4 +273,5 @@ if __name__ == "__main__":
     init_db()
     init_users_db()
     init_activity_db()
+    init_shopping_db()
     HTTPServer(("localhost", PORT), PantryRequestHandler).serve_forever()
